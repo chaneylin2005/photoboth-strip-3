@@ -86,7 +86,7 @@
 
     <div id="design-view">
         <section class="design-area">
-            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <div id="designer-actions-top" style="display: flex; gap: 10px; margin-bottom: 10px;">
                 <button id="toggleViewBtn" class="secondary-action" style="width: auto;" onclick="showLibrary()">
                     ← Quay lại Thư Viện Thiết Kế
                 </button>
@@ -94,17 +94,22 @@
                     **+ Tạo Thiết Kế Mới**
                 </button>
             </div>
-            <h2>Khung Xem Trước Strip 4 Ảnh (Bấm chuột phải để Xóa đối tượng)</h2>
+            <h2 id="canvas-header">Khung Xem Trước Strip 4 Ảnh (Bấm chuột phải để Xóa đối tượng)</h2>
             <canvas id="photoStripCanvas" width="600" height="1800">
                 Trình duyệt của bạn không hỗ trợ Canvas.
             </canvas>
             <div class="webcam-preview">
                 <video id="webcamFeed" autoplay></video>
                 <button id="capturePhotoBtn">Chụp Ảnh (1/4)</button>
+                
+                <label for="viewerImageUpload" id="viewerImageUploadLabel" class="secondary-action" style="display: none; text-align: center; margin-bottom: 5px; background-color: #17a2b8; color: white; ">
+                    **Hoặc Tải Ảnh Lên Để Thay Thế**
+                </label>
+                <input type="file" id="viewerImageUpload" accept="image/*" style="display: none;">
             </div>
         </section>
 
-        <aside class="controls-panel">
+        <aside id="controls-panel" class="controls-panel">
             <h2>🛠️ Công Cụ Thiết Kế</h2>
 
             <fieldset class="control-group">
@@ -183,7 +188,7 @@
     <div id="library-view">
         <h1>📚 Thư Viện Mẫu Thiết Kế Của Tôi</h1>
         <div class="alert-message">
-            **LƯU Ý:** Chức năng **Xuất Link Chia Sẻ** hiện tại đã nhúng toàn bộ thiết kế vào link (Base64). Bạn có thể chia sẻ link này hoặc chia sẻ file **.json** tải xuống từ nút **Lưu Thiết Kế**.
+            **LƯU Ý:** Bạn có thể chia sẻ mẫu thiết kế bằng **Link Chia Sẻ** (yêu cầu host web như GitHub Pages) hoặc chia sẻ file **.json** (có thể dùng cục bộ).
         </div>
         <button id="newDesignBtnLib" onclick="showDesign(true)">+ Tạo Mẫu Thiết Kế Mới</button>
         <div id="designList" class="design-list">
@@ -232,7 +237,7 @@
         const saveDesignBtn = document.getElementById('saveDesignBtn');
         const exportShareLinkBtn = document.getElementById('exportShareLinkBtn');
         
-        // **MỚI:** Design File Upload
+        // Design File Upload
         const designUpload = document.getElementById('designUpload');
         
         // Layer Controls
@@ -241,7 +246,14 @@
         const bringToFrontBtn = document.getElementById('bringToFrontBtn');
         const sendToBackBtn = document.getElementById('sendToBackBtn');
         const layerControlAlert = document.getElementById('layerControlAlert');
-
+        
+        // CÁC PHẦN TỬ CHO VIEWER MODE
+        const controlsPanel = document.getElementById('controls-panel');
+        const designerActionsTop = document.getElementById('designer-actions-top');
+        const toggleViewBtn = document.getElementById('toggleViewBtn');
+        const canvasHeader = document.getElementById('canvas-header');
+        const viewerImageUpload = document.getElementById('viewerImageUpload');
+        const viewerImageUploadLabel = document.getElementById('viewerImageUploadLabel'); // Nút Tải ảnh cho Viewer Mode
 
         const MAX_PHOTOS = 4;
 
@@ -277,6 +289,9 @@
 
 
         canvas.addEventListener('contextmenu', (e) => {
+            // Chỉ cho phép xóa khi đang ở Designer Mode
+            if (controlsPanel.style.display === 'none') return;
+            
             e.preventDefault(); 
             if (selectedObject) {
                  if (confirm("Bạn có muốn xóa đối tượng đã chọn này không?")) {
@@ -297,10 +312,11 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
                 webcamFeed.srcObject = stream;
+                webcamFeed.style.display = 'block';
+                capturePhotoBtn.style.display = 'block';
             } catch (error) {
                 console.error("Không thể truy cập webcam:", error);
-                // **THÔNG BÁO LỖI VỀ WEBCAM**
-                alert("Chức năng chụp ảnh chưa được triển khai đầy đủ. Vui lòng sử dụng tính năng 'Tải Lên Ảnh Cá Nhân/Idol'.");
+                alert("Không thể truy cập Webcam. Vui lòng sử dụng tính năng 'Tải Lên Ảnh Cá Nhân/Idol'.");
                 webcamFeed.style.display = 'none';
                 capturePhotoBtn.style.display = 'none';
             }
@@ -311,7 +327,7 @@
                 capturePhotoBtn.textContent = `Chụp Ảnh (${currentPhotoIndex + 1}/${MAX_PHOTOS})`;
                 capturePhotoBtn.disabled = false;
             } else {
-                capturePhotoBtn.textContent = `HOÀN TẤT CHỤP!`;
+                capturePhotoBtn.textContent = `HOÀN TẤT CHỤP! (Sẵn sàng Xuất Ảnh)`;
                 capturePhotoBtn.disabled = true;
             }
         }
@@ -429,8 +445,8 @@
                     ctx.fillText(obj.text, obj.x, obj.y + obj.fontSize * 0.75);
                 }
                 
-                // Vẽ viền và điểm điều khiển nếu đối tượng được chọn
-                if (obj === selectedObject) {
+                // Vẽ viền và điểm điều khiển chỉ khi ở Designer Mode VÀ đối tượng được chọn
+                if (controlsPanel.style.display !== 'none' && obj === selectedObject) {
                     ctx.strokeStyle = '#FF00FF'; 
                     ctx.lineWidth = 2;
                     ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
@@ -595,6 +611,9 @@
         }
 
         function handleMouseDown(e) {
+            // Chỉ cho phép tương tác khi ở Designer Mode
+            if (controlsPanel.style.display === 'none') return;
+            
             const mousePos = getMousePos(e);
             let foundObject = null;
             isResizing = false;
@@ -648,6 +667,7 @@
         }
 
         function handleMouseMove(e) {
+            if (controlsPanel.style.display === 'none') return;
             if (!isDragging || !selectedObject) {
                 return;
             }
@@ -695,6 +715,7 @@
         }
 
         function handleMouseUp() {
+            if (controlsPanel.style.display === 'none') return;
             if (isRotating && selectedObject) {
                 lastAngle = selectedObject.angle || 0; 
             }
@@ -728,10 +749,37 @@
         }
 
         // =======================================================
-        // PHẦN 4: LOGIC LƯU/TẢI/XUẤT
+        // PHẦN 4: LOGIC LƯU/TẢI/XUẤT VÀ CHUYỂN CHẾ ĐỘ
         // =======================================================
+        
+        // HÀM MỚI: ẨN/HIỆN CONTROLS TÙY THEO CHẾ ĐỘ (ĐÃ CẬP NHẬT)
+        function toggleDesignerControls(show) {
+            if (show) {
+                // DESIGNER MODE: Hiển thị các nút thiết kế và chức năng chỉnh sửa
+                controlsPanel.style.display = 'block';
+                designerActionsTop.style.display = 'flex';
+                canvasHeader.textContent = "Khung Xem Trước Strip 4 Ảnh (Bấm chuột phải để Xóa đối tượng)";
+                mainTitle.textContent = "Tạo Strip Photo Booth Cá Nhân";
+
+                viewerImageUploadLabel.style.display = 'none'; // Ẩn nút tải ảnh của Viewer
+                exportFinalImageBtn.style.marginTop = '20px'; // Quay lại margin mặc định
+                
+            } else {
+                // VIEWER MODE: Ẩn tất cả các controls thiết kế
+                controlsPanel.style.display = 'none';
+                designerActionsTop.style.display = 'none'; // Ẩn nút Quay lại thư viện và Tạo mới
+                canvasHeader.textContent = "Khung Ảnh Strip Photobooth Của Bạn";
+                mainTitle.textContent = "Sử Dụng Mẫu Photobooth";
+
+                // Hiển thị nút tải ảnh cho Viewer Mode thay thế cho nút Tải Ảnh trong controls panel
+                viewerImageUploadLabel.style.display = 'block'; 
+                exportFinalImageBtn.style.marginTop = '5px'; // Đẩy nút Export lên cao hơn
+            }
+        }
+
 
         function loadDesigns() {
+            // ... (Logic tải designs từ Local Storage không đổi) ...
             const savedDesigns = JSON.parse(localStorage.getItem('photoBoothDesigns') || '[]');
             designList.innerHTML = '';
             
@@ -759,8 +807,8 @@
         function showLibrary() {
             designView.style.display = 'none';
             libraryView.style.display = 'block'; 
-            mainTitle.textContent = "📚 Thư Viện Mẫu Thiết Kế Của Tôi";
             
+            toggleDesignerControls(true); // LUÔN BẬT DESIGNER MODE KHI VÀO THƯ VIỆN
             loadDesigns(); 
             
             if (webcamFeed.srcObject) {
@@ -773,9 +821,10 @@
         function showDesign(isNew = false, designData = null) {
             designView.style.display = 'flex';
             libraryView.style.display = 'none';
-            mainTitle.textContent = "Tạo Strip Photo Booth Cá Nhân";
             currentDesignId = null; 
             selectedObject = null;
+            
+            // Logic ẩn/hiện controls sẽ nằm ở window.onload hoặc showLibrary (đã được gọi)
 
             if (isNew) {
                 capturedPhotos = [];
@@ -824,7 +873,10 @@
                     loadCount++;
                     if (loadCount === totalObjects || totalObjects === 0) {
                         drawFrame();
-                        alert(`Thiết kế "${designData.name || currentDesignId}" đã được tải thành công!`);
+                        // Chỉ hiện thông báo khi tải từ Local Storage/File
+                        if (controlsPanel.style.display !== 'none') {
+                            alert(`Thiết kế "${designData.name || currentDesignId}" đã được tải thành công!`);
+                        }
                     }
                 };
 
@@ -855,8 +907,9 @@
             }
         }
         
-        // **ĐÃ CẬP NHẬT:** Hàm Lưu Thiết Kế & Tải File JSON
+        // Hàm Lưu Thiết Kế & Tải File JSON
         function saveDesign() {
+            // ... (Logic Lưu không đổi) ...
             if (!currentDesignId) {
                 currentDesignId = Math.random().toString(36).substring(2, 9);
             }
@@ -913,14 +966,16 @@
             alert(`✅ Thiết kế "${designName}" đã được lưu vào Thư Viện và tải xuống thành file .json! Bạn có thể gửi file này cho người khác.`);
         }
         
-        // **MỚI:** Hàm xử lý Tải File JSON
+        // Hàm xử lý Tải File JSON
         function handleDesignUpload(file) {
+            // ... (Logic Tải File không đổi) ...
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
                     const designData = JSON.parse(e.target.result);
                     if (designData && designData.settings) {
                         showDesign(false, designData);
+                        toggleDesignerControls(true); // Luôn bật designer khi tải từ file
                     } else {
                         throw new Error("Dữ liệu JSON không hợp lệ.");
                     }
@@ -936,6 +991,7 @@
             const savedDesigns = JSON.parse(localStorage.getItem('photoBoothDesigns') || '[]');
             if (savedDesigns[index]) {
                 showDesign(false, savedDesigns[index]);
+                toggleDesignerControls(true); // Luôn bật designer khi tải từ thư viện
             } else {
                 alert("Không tìm thấy thiết kế này.");
             }
@@ -963,7 +1019,7 @@
             document.body.removeChild(link);
         }
         
-        // **CŨ/ĐÃ CẬP NHẬT:** Hàm Xuất Link Chia Sẻ (Base64)
+        // Hàm Xuất Link Chia Sẻ (Base64)
         function exportShareLink() {
             const designDataToShare = {
                 id: currentDesignId || Math.random().toString(36).substring(2, 9),
@@ -987,28 +1043,25 @@
             };
 
             const jsonString = JSON.stringify(designDataToShare);
-            
-            // Mã hóa JSON thành Base64 an toàn cho URL
             const encodedDesign = btoa(unescape(encodeURIComponent(jsonString)));
-            
-            // Tạo link chia sẻ
             const shareLink = `${window.location.href.split('#')[0]}#${encodedDesign}`;
             
-            alert("✅ Link Chia Sẻ Thiết Kế (Đã nhúng toàn bộ dữ liệu):\n\n" + shareLink);
-            
-            navigator.clipboard.writeText(shareLink).then(() => {
-                console.log("Link chia sẻ đã được sao chép vào clipboard.");
-            }).catch(err => {
-                console.error("Không thể sao chép link:", err);
-                alert("Lưu ý: Không thể tự động sao chép link. Vui lòng sao chép thủ công.");
-            });
+            // SỬ DỤNG prompt để dễ dàng sao chép thủ công và đảm bảo link hiện đầy đủ
+            const promptResult = prompt(
+                "✅ Link Chia Sẻ Thiết Kế (Đã nhúng toàn bộ dữ liệu).\nVui lòng BÔI ĐEN toàn bộ link và nhấn Ctrl+C (hoặc Cmd+C) để sao chép:", 
+                shareLink
+            );
+
+            if (promptResult === null) {
+                alert("Bạn đã hủy thao tác sao chép link.");
+            }
         }
         
         // =======================================================
         // PHẦN 5: GẮN SỰ KIỆN VÀ KHỞI TẠO
         // =======================================================
 
-        // Gắn sự kiện Tải Ảnh
+        // Gắn sự kiện Tải Ảnh (Designer Mode)
         addImageToStripBtn.addEventListener('click', () => {
             const file = imageUpload.files[0];
             if (file) {
@@ -1022,7 +1075,7 @@
             }
         });
         
-        // **MỚI:** Gắn sự kiện Tải Mẫu Thiết Kế (JSON)
+        // Gắn sự kiện Tải Mẫu Thiết Kế (JSON)
         designUpload.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
@@ -1071,6 +1124,39 @@
         bringToFrontBtn.addEventListener('click', () => adjustLayer('front'));
         sendToBackBtn.addEventListener('click', () => adjustLayer('back'));
 
+        // Gắn sự kiện Tải ảnh cho Viewer Mode (MỚI)
+        viewerImageUpload.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files.length > 0) {
+                const file = files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // Tải ảnh mới vào slot trống đầu tiên (hoặc slot 0 nếu đã đầy)
+                        const slotIndex = capturedPhotos.findIndex(p => p === null || p === undefined);
+                        const indexToUse = slotIndex !== -1 ? slotIndex : 0;
+                        
+                        capturedPhotos[indexToUse] = {
+                            index: indexToUse,
+                            image: img,
+                            src: e.target.result
+                        };
+                        
+                        if (currentPhotoIndex <= indexToUse) {
+                            currentPhotoIndex = indexToUse + 1;
+                        }
+                        
+                        updateCaptureButtonText();
+                        drawFrame();
+                        alert(`Ảnh đã được tải lên slot ${indexToUse + 1}.`);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
 
         // Gắn sự kiện cho các điều khiển
         frameColorInput.addEventListener('input', drawFrame);
@@ -1101,9 +1187,10 @@
                     const decodedJsonString = decodeURIComponent(escape(atob(hashValue)));
                     const designData = JSON.parse(decodedJsonString);
                     
-                    // 2. Nếu giải mã thành công và có dữ liệu, tải thiết kế
                     if (designData && designData.settings) {
+                        // Tải mẫu thành công -> Bật chế độ Viewer Mode
                         showDesign(false, designData);
+                        toggleDesignerControls(false); // <--- TẮT CONTROLS CHỈNH SỬA
                         return;
                     }
 
@@ -1113,13 +1200,14 @@
                     const sharedDesign = allDesigns.find(d => d.id === hashValue);
                     if (sharedDesign) {
                         showDesign(false, sharedDesign);
+                        toggleDesignerControls(false); // <--- TẮT CONTROLS CHỈNH SỬA
                         return;
                     }
                     console.error("Lỗi khi tải hoặc giải mã link chia sẻ:", e);
                 }
             }
             
-            // 4. Mặc định: Hiển thị thư viện
+            // 4. Mặc định: Hiển thị thư viện/Designer Mode
             showLibrary();
         };
     </script>
